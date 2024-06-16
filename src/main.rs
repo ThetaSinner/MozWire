@@ -229,7 +229,7 @@ fn main() {
                         id == device.name
                             || id == device.pubkey
                             || private_to_public_key(&id)
-                                .map_or(false, |pubkey| device.pubkey == pubkey)
+                                .is_ok_and(|pubkey| pubkey == device.pubkey)
                     }) {
                         client
                             .delete(&format!(
