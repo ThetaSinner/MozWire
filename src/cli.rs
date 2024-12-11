@@ -48,6 +48,7 @@ pub(crate) enum Tunnel {
     Ipv6,
 }
 
+#[derive(Clone)]
 pub(crate) enum Port {
     Random,
     Port(u16),
@@ -96,7 +97,7 @@ pub(crate) enum RelayCommands {
         #[clap(long)]
         privkey: Option<String>,
         /// Port to use. This can be changed to bypass firewalls and dissimulate the use of WireGuard. A value of "random" will choose a random port within the available range, which is the only available behaviour of the windows MozillaVPN client.
-        #[clap(default_value = "51820", short)]
+        #[arg(value_enum, default_value = "51820", short)]
         port: Port,
         /// Select whether to tunnel both ipv4 and ipv6, only ipv4 or only ipv6.
         #[clap(long, value_enum, default_value_t)]

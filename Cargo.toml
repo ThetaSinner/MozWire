@@ -17,7 +17,7 @@ strip = "symbols"
 
 [dependencies]
 base64 = "0.22.1"
-clap = { version = "3.2.5", features = ["color", "derive", "env", "wrap_help"] }
+clap = { version = "4.5.23", features = ["color", "derive", "env", "wrap_help"] }
 percent-encoding = "2.1.0"
 rand = "0.7.3"
 regex = "1.5.6"
