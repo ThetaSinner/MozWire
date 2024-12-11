@@ -1,4 +1,5 @@
 use crate::constants::{EXPLOITATION_ATTEMPT_MESSAGE, RELAYLIST_URL};
+use base64::Engine;
 use serde::de;
 use std::{
     fmt,
@@ -25,7 +26,7 @@ impl de::Visitor<'_> for PublicKeyVisitor {
         if v.len() != 44 {
             exploitation_attempt();
         }
-        match base64::decode_config_slice(v, base64::STANDARD, &mut pubkey) {
+        match base64::prelude::BASE64_STANDARD.decode_slice(v, &mut pubkey) {
             Ok(32) => (),
             _ => {
                 exploitation_attempt();
@@ -43,7 +44,7 @@ impl<'de> serde::Deserialize<'de> for PublicKey {
 
 impl fmt::Display for PublicKey {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        f.write_str(&base64::encode(self.0.as_bytes()))
+        f.write_str(&base64::prelude::BASE64_STANDARD.encode(self.0.as_bytes()))
     }
 }
 
@@ -51,7 +52,7 @@ pub struct PublicKey(x25519_dalek::PublicKey);
 
 impl PartialEq<String> for PublicKey {
     fn eq(&self, other: &String) -> bool {
-        base64::encode(self.as_bytes()) == *other
+        base64::prelude::BASE64_STANDARD.encode(self.as_bytes()) == *other
     }
 }
 

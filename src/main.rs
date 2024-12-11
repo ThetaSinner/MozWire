@@ -1,3 +1,4 @@
+use base64::Engine;
 use core::num::NonZeroUsize;
 
 mod cli;
@@ -61,10 +62,10 @@ struct NewDevice<'a> {
     pubkey: &'a str,
 }
 
-fn private_to_public_key(privkey_base64: &str) -> Result<String, base64::DecodeError> {
+fn private_to_public_key(privkey_base64: &str) -> Result<String, base64::DecodeSliceError> {
     let mut privkey = [0; 32];
-    base64::decode_config_slice(privkey_base64, base64::STANDARD, &mut privkey)?;
-    Ok(base64::encode(
+    base64::prelude::BASE64_STANDARD.decode_slice(privkey_base64, &mut privkey)?;
+    Ok(base64::prelude::BASE64_STANDARD.encode(
         x25519_dalek::PublicKey::from(&x25519_dalek::StaticSecret::from(privkey)).as_bytes(),
     ))
 }
@@ -113,17 +114,12 @@ fn main() {
             let mut code_verifier_random = [0u8; 32];
             rand::rngs::OsRng.fill_bytes(&mut code_verifier_random);
             let mut code_verifier = [0u8; 43];
-            base64::encode_config_slice(
-                code_verifier_random,
-                base64::URL_SAFE_NO_PAD,
-                &mut code_verifier,
-            );
+            base64::prelude::BASE64_URL_SAFE_NO_PAD
+                .encode_slice(code_verifier_random, &mut code_verifier)
+                .expect("Could not encode code verifier random");
             let mut code_challenge = String::with_capacity(43);
-            base64::encode_config_buf(
-                sha2::Sha256::digest(code_verifier),
-                base64::URL_SAFE_NO_PAD,
-                &mut code_challenge,
-            );
+            base64::prelude::BASE64_URL_SAFE_NO_PAD
+                .encode_string(sha2::Sha256::digest(code_verifier), &mut code_challenge);
 
             use tiny_http::{Method, Server};
 
@@ -234,7 +230,8 @@ fn main() {
                                 BASE_URL,
                                 V1_API,
                                 percent_encoding::utf8_percent_encode(
-                                    &base64::encode(device.pubkey.as_bytes()),
+                                    &base64::prelude::BASE64_STANDARD
+                                        .encode(device.pubkey.as_bytes()),
                                     percent_encoding::NON_ALPHANUMERIC
                                 )
                             ))
@@ -268,9 +265,11 @@ fn main() {
                 let (pubkey_base64, privkey_base64) = privkey.map_or_else(
                     || {
                         let privkey = x25519_dalek::StaticSecret::new(rand::rngs::OsRng);
-                        let privkey_base64 = base64::encode(privkey.to_bytes());
+                        let privkey_base64 =
+                            base64::prelude::BASE64_STANDARD.encode(privkey.to_bytes());
                         (
-                            base64::encode(x25519_dalek::PublicKey::from(&privkey).as_bytes()),
+                            base64::prelude::BASE64_STANDARD
+                                .encode(x25519_dalek::PublicKey::from(&privkey).as_bytes()),
                             privkey_base64,
                         )
                     },
