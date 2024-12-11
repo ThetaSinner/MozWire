@@ -72,7 +72,7 @@ fn private_to_public_key(privkey_base64: &str) -> Result<String, base64::DecodeE
 impl NewDevice<'_> {
     fn upload(self, client: &reqwest::blocking::Client, token: &str) -> Device {
         let response = client
-            .post(&format!("{}{}/vpn/device", BASE_URL, V1_API))
+            .post(format!("{}{}/vpn/device", BASE_URL, V1_API))
             .bearer_auth(token)
             .json(&self)
             .send()
@@ -120,7 +120,7 @@ fn main() {
             );
             let mut code_challenge = String::with_capacity(43);
             base64::encode_config_buf(
-                sha2::Sha256::digest(&code_verifier),
+                sha2::Sha256::digest(code_verifier),
                 base64::URL_SAFE_NO_PAD,
                 &mut code_challenge,
             );
@@ -150,21 +150,18 @@ fn main() {
             let code_url_regex = regex::Regex::new(r"\A/\?code=([0-9a-f]{80})\z").unwrap();
             for request in server.incoming_requests() {
                 if *request.method() == Method::Get {
-                    match code_url_regex.captures(request.url()) {
-                        Some(caps) => {
-                            code = caps.get(1).unwrap();
-                            return client
-                                .post(&format!("{}{}/vpn/login/verify", BASE_URL, V2_API))
-                                .json(&AccessTokenRequest {
-                                    code: code.as_str(),
-                                    code_verifier: std::str::from_utf8(&code_verifier).unwrap(),
-                                })
-                                .send()
-                                .unwrap()
-                                .json()
-                                .unwrap();
-                        }
-                        None => (),
+                    if let Some(caps) = code_url_regex.captures(request.url()) {
+                        code = caps.get(1).unwrap();
+                        return client
+                            .post(format!("{}{}/vpn/login/verify", BASE_URL, V2_API))
+                            .json(&AccessTokenRequest {
+                                code: code.as_str(),
+                                code_verifier: std::str::from_utf8(&code_verifier).unwrap(),
+                            })
+                            .send()
+                            .unwrap()
+                            .json()
+                            .unwrap();
                     }
                 }
             }
@@ -172,7 +169,7 @@ fn main() {
         },
         |token| {
             let response = client
-                .get(&format!("{}{}/vpn/account", BASE_URL, V1_API))
+                .get(format!("{}{}/vpn/account", BASE_URL, V1_API))
                 .bearer_auth(token.trim())
                 .send()
                 .unwrap();
@@ -232,7 +229,7 @@ fn main() {
                                 .is_ok_and(|pubkey| pubkey == device.pubkey)
                     }) {
                         client
-                            .delete(&format!(
+                            .delete(format!(
                                 "{}{}/vpn/device/{}",
                                 BASE_URL,
                                 V1_API,
@@ -270,7 +267,7 @@ fn main() {
             } => {
                 let (pubkey_base64, privkey_base64) = privkey.map_or_else(
                     || {
-                        let privkey = x25519_dalek::StaticSecret::new(&mut rand::rngs::OsRng);
+                        let privkey = x25519_dalek::StaticSecret::new(rand::rngs::OsRng);
                         let privkey_base64 = base64::encode(privkey.to_bytes());
                         (
                             base64::encode(x25519_dalek::PublicKey::from(&privkey).as_bytes()),
@@ -364,7 +361,7 @@ fn main() {
                     };
                     // FIXME: we can use a pathbuf instead of this removes one allocation
                     let path = std::path::Path::new(&output);
-                    std::fs::create_dir_all(&path).unwrap();
+                    std::fs::create_dir_all(path).unwrap();
                     let path = path.join(format!("{}.conf", server.hostname));
                     std::fs::write(
                         &path,
