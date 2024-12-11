@@ -16,6 +16,7 @@ use device::Device;
 use relay::RelayList;
 
 use clap::Parser;
+use tiny_http::ListenAddr;
 
 #[derive(serde::Deserialize)]
 struct User {
@@ -130,7 +131,11 @@ fn main() {
                 BASE_URL,
                 V2_API,
                 code_challenge,
-                server.server_addr().port()
+                match server.server_addr() {
+                    ListenAddr::IP(socket_addr) => socket_addr.port(),
+                    #[cfg(unix)]
+                    ListenAddr::Unix(_) => unreachable!("Server is not bound to a unix socket"),
+                }
             );
 
             eprint!("Please visit {}.", login_url);
