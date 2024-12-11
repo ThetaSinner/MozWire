@@ -1,7 +1,7 @@
-use std::{num::ParseIntError, str::FromStr};
-
 use clap::{ArgGroup, Args, Parser, Subcommand, ValueEnum};
 use regex::Regex;
+use std::path::PathBuf;
+use std::{num::ParseIntError, str::FromStr};
 
 #[derive(Parser)]
 #[clap(
@@ -15,16 +15,16 @@ use regex::Regex;
     arg_required_else_help = true
 )]
 pub struct Cli {
-    #[clap(subcommand)]
+    #[command(subcommand)]
     pub(crate) command: Option<Commands>,
     /// By default, mozwire will open the login page in a browser, this option prevents mozwire a browser page from being opened.
-    #[clap(long, global = true)]
+    #[arg(long, global = true)]
     pub(crate) no_browser: bool,
     /// The token used to communicate with the Mozilla API. If unspecified, a web page will be opened to retrieve the token. the MOZ_TOKEN environment variable can also be used instead.
-    #[clap(long, global = true, env = "MOZ_TOKEN")]
+    #[arg(long, global = true, env = "MOZ_TOKEN")]
     pub(crate) token: Option<String>,
     /// Print the token used to query the Mozilla API, so that it can be reused with --token, without having to sign in each time.
-    #[clap(long, global = true)]
+    #[arg(long, global = true)]
     pub(crate) print_token: bool,
 }
 
@@ -32,11 +32,11 @@ pub struct Cli {
 pub(crate) enum Commands {
     /// Add, remove and list devices. To connect to MozillaVPN, a device needs to be on the list.
     Device {
-        #[clap(subcommand)]
+        #[command(subcommand)]
         command: DeviceCommands,
     },
     Relay {
-        #[clap(subcommand)]
+        #[command(subcommand)]
         command: RelayCommands,
     },
 }
@@ -74,7 +74,7 @@ impl Default for Tunnel {
 #[derive(Args)]
 pub(crate) struct NameArgs {
     /// Name linked with a public key. Defaults to the hostname of the system. This value has no effect on the functioning of the VPN.
-    #[clap(long, default_value_t = sys_info::hostname().unwrap())]
+    #[arg(long, default_value_t = sys_info::hostname().unwrap())]
     pub(crate) name: String,
 }
 
@@ -82,17 +82,17 @@ pub(crate) struct NameArgs {
 #[derive(Subcommand)]
 pub(crate) enum RelayCommands {
     /// List relays
-    #[clap(alias = "ls")]
+    #[command(alias = "ls")]
     List,
     /// Save wireguard configuration for a MozillaVPN server. If the private key used is not in the device list uploaded, mozwire will upload it.
-    #[clap(group(ArgGroup::new("port-or-hop").args(&["hop", "port"])))]
+    #[command(group(ArgGroup::new("port-or-hop").args(&["hop", "port"])))]
     Save {
         /// Regex to filter servers by hostname.
         #[clap(default_value = "")]
         regex: Regex,
         /// Directory in which to output the WireGuard configuration. Defaults to the current directory
         #[clap(default_value = ".", short)]
-        output: String,
+        output: PathBuf,
         /// Private key to use in the configuration file. If it is not specified, mozwire will generate one and update the device list.
         #[clap(long)]
         privkey: Option<String>,
@@ -119,23 +119,23 @@ pub(crate) enum RelayCommands {
 #[derive(Subcommand)]
 pub(crate) enum DeviceCommands {
     /// Add a device to the device list, so it can be used to connect to MozillaVPN
-    #[clap(group(ArgGroup::new("key").required(true).args(&["pubkey", "privkey"])))]
+    #[command(group(ArgGroup::new("key").required(true).args(&["pubkey", "privkey"])))]
     Add {
-        #[clap(long)]
+        #[arg(long)]
         pubkey: Option<String>,
-        #[clap(long)]
+        #[arg(long)]
         privkey: Option<String>,
-        #[clap(flatten)]
+        #[command(flatten)]
         name: NameArgs,
     },
     /// List devices
-    #[clap(alias = "ls")]
+    #[command(alias = "ls")]
     List,
     /// Remove one or multiple devices
-    #[clap(alias = "rm")]
+    #[command(alias = "rm")]
     Remove {
         /// Public, private key or name of the device(s) to remove.
-        #[clap(required = true)]
+        #[arg(required = true)]
         ids: Vec<String>,
     },
 }

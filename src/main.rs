@@ -1,22 +1,17 @@
+use crate::cli::{Cli, Commands, DeviceCommands, Port, RelayCommands, Tunnel};
+use crate::constants::{BASE_URL, IPV4_GATEWAY, PORT_RANGES, V1_API, V2_API};
+use crate::device::Device;
+use crate::relay::RelayList;
 use base64::Engine;
+use clap::Parser;
 use core::num::NonZeroUsize;
+use rand::seq::IteratorRandom;
+use tiny_http::ListenAddr;
 
 mod cli;
 mod constants;
 mod device;
 mod relay;
-
-use crate::cli::{Cli, Commands, DeviceCommands, Port, RelayCommands, Tunnel};
-
-use constants::{BASE_URL, IPV4_GATEWAY, PORT_RANGES, V1_API, V2_API};
-
-use rand::seq::IteratorRandom;
-
-use device::Device;
-use relay::RelayList;
-
-use clap::Parser;
-use tiny_http::ListenAddr;
 
 #[derive(serde::Deserialize)]
 struct User {
@@ -138,7 +133,7 @@ fn main() {
                 }
             );
 
-            eprint!("Please visit {}.", login_url);
+            eprint!("Please visit: {}.", login_url);
             if !matches.no_browser {
                 match webbrowser::open(&login_url) {
                     Ok(_) => eprint!(" Link opened in browser."),
@@ -198,14 +193,12 @@ fn main() {
                 privkey,
                 name,
             } => {
-                let pubkey =
-                    pubkey.unwrap_or_else(|| match private_to_public_key(&privkey.unwrap()) {
-                        Ok(pubkey) => pubkey,
-                        Err(_) => {
-                            println!("Invalid private key.");
-                            std::process::exit(2)
-                        }
-                    });
+                let pubkey = pubkey.unwrap_or_else(|| {
+                    private_to_public_key(&privkey.unwrap()).unwrap_or_else(|_| {
+                        println!("Invalid private key.");
+                        std::process::exit(2)
+                    })
+                });
                 println!(
                     "{}",
                     &NewDevice {
@@ -281,13 +274,10 @@ fn main() {
                     },
                     |privkey_base64| {
                         (
-                            match private_to_public_key(&privkey_base64) {
-                                Ok(pubkey) => pubkey,
-                                Err(_) => {
-                                    println!("Invalid private key.");
-                                    std::process::exit(2)
-                                }
-                            },
+                            private_to_public_key(&privkey_base64).unwrap_or_else(|_| {
+                                println!("Invalid private key.");
+                                std::process::exit(2)
+                            }),
                             privkey_base64.to_owned(),
                         )
                     },
@@ -364,25 +354,21 @@ fn main() {
                             }
                         }
                     };
-                    // FIXME: we can use a pathbuf instead of this removes one allocation
-                    let path = std::path::Path::new(&output);
-                    std::fs::create_dir_all(path).unwrap();
-                    let path = path.join(format!("{}.conf", server.hostname));
+
+                    std::fs::create_dir_all(&output).unwrap();
+                    let path = output.join(format!("{}.conf", server.hostname));
                     std::fs::write(
                         &path,
                         format!(
                             "[Interface]
-PrivateKey = {}
-Address = {}
-DNS = {}{}
+PrivateKey = {privkey_base64}
+Address = {address}
+DNS = {IPV4_GATEWAY}{}
 
 [Peer]
 PublicKey = {}
-AllowedIPs = {}
-Endpoint = {}:{}\n",
-                            privkey_base64,
-                            address,
-                            IPV4_GATEWAY,
+AllowedIPs = {allowed_ips}
+Endpoint = {ip}:{port}\n",
                             if killswitch {
                                 "\nPostUp = iptables -I OUTPUT ! -o %i -m mark ! --mark $(wg show \
                                  %i fwmark) -m addrtype ! --dst-type LOCAL -j REJECT && ip6tables \
@@ -396,9 +382,6 @@ PreDown = iptables -D OUTPUT ! -o %i -m mark ! --mark $(wg show %i fwmark) -m ad
                                 ""
                             },
                             server.public_key,
-                            allowed_ips,
-                            ip,
-                            port
                         ),
                     )
                     .unwrap();
