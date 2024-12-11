@@ -264,7 +264,8 @@ fn main() {
             } => {
                 let (pubkey_base64, privkey_base64) = privkey.map_or_else(
                     || {
-                        let privkey = x25519_dalek::StaticSecret::random_from_rng(rand::rngs::OsRng);
+                        let privkey =
+                            x25519_dalek::StaticSecret::random_from_rng(rand::rngs::OsRng);
                         let privkey_base64 =
                             base64::prelude::BASE64_STANDARD.encode(privkey.to_bytes());
                         (
